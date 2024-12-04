@@ -64,153 +64,174 @@ def find_cycles(edges):
             dfs(node, visited, stack, [])
     
     return cycles
+
 import itertools
 cycles = set(itertools.chain(*find_cycles(Q)))
-# print(cycles)
 
 # ---------------------------------------------------------------------
 # optimize the first objective
-from ortools.linear_solver import pywraplp
+print('Optimize the first objective')
+from ortools.sat.python import cp_model
 
-solver = pywraplp.Solver.CreateSolver('SCIP')
-# variables
+model = cp_model.CpModel()
+LARGE_NUMBER = int(1e9)
+
 x = {}
 for i in range(n):
     for j in range(m):
         if (i, j) in C and i not in cycles:
-            x[(i, j)] = solver.IntVar(0, 1, f'x_{i}_{j}')
+            x[(i, j)] = model.NewBoolVar(f'x_{i}_{j}')
 
 start_time = {}
 for i in range(n):
     if i not in cycles:
-        start_time[i] = solver.IntVar(0, solver.infinity(), f'start_time_{i}')
+        start_time[i] = model.NewIntVar(0, LARGE_NUMBER, f'start_time_{i}')
 
 # constraints
 for i in range(n):
-    for j in range(m):  
+    for j in range(m):
         if (i, j) in C and i not in cycles:
-            solver.Add(start_time[i] >= s[j] * x[(i, j)])
+            model.Add(start_time[i] >= s[j] * x[(i, j)])
 
 for (i, j) in Q:
     if i not in cycles and j not in cycles:
-        solver.Add(start_time[i] + d[i] <= start_time[j])
+        model.Add(start_time[i] + d[i] <= start_time[j])
 
 for i in range(n):
     if i not in cycles:
-        solver.Add(solver.Sum(x[(i, j)] for j in range(m) if (i, j) in C) <= 1)
+        model.Add(sum(x[(i, j)] for j in range(m) if (i, j) in C) <= 1)
 
-completion_time = solver.IntVar(0, 1e6, 'completion_time')
+completion_time = model.NewIntVar(0, LARGE_NUMBER, 'completion_time')
 for i in range(n):
     if i not in cycles:
-        solver.Add(start_time[i] + d[i] <= completion_time)
+        model.Add(start_time[i] + d[i] <= completion_time)
 
 # objective
-solver.Maximize(solver.Sum(x[(i, j)] for i in range(n) for j in range(m) if (i, j) in C and i not in cycles))
+model.Maximize(
+    sum(
+        [x[(i, j)] for i in range(n) for j in range(m) if (i, j) in C and i not in cycles]
+    )
+)
 
-status = solver.Solve()
+solver = cp_model.CpSolver()
+solver.parameters.num_search_workers = 1
+solver.parameters.max_time_in_seconds = 5
+status = solver.Solve(model)
 
-if status==pywraplp.Solver.INFEASIBLE:
+if status == cp_model.INFEASIBLE:
     print('Infeasible max_tasks')
     exit()
 
-max_tasks = solver.Objective().Value()
+max_tasks = int(solver.ObjectiveValue())
+# print(max_tasks)
 
 # ---------------------------------------------------------------------
 # optimize the second objective
-solver = pywraplp.Solver.CreateSolver('SCIP')
-# variables
+print('Optimize the second objective')
+model = cp_model.CpModel()
+
 x = {}
 for i in range(n):
     for j in range(m):
         if (i, j) in C and i not in cycles:
-            x[(i, j)] = solver.IntVar(0, 1, f'x_{i}_{j}')
+            x[(i, j)] = model.NewBoolVar(f'x_{i}_{j}')
 
 start_time = {}
 for i in range(n):
     if i not in cycles:
-        start_time[i] = solver.IntVar(0, solver.infinity(), f'start_time_{i}')
+        start_time[i] = model.NewIntVar(0, LARGE_NUMBER, f'start_time_{i}')
 
-# constraints
 for i in range(n):
-    for j in range(m):  
+    for j in range(m):
         if (i, j) in C and i not in cycles:
-            solver.Add(start_time[i] >= s[j] * x[(i, j)])
+            model.Add(start_time[i] >= s[j] * x[(i, j)])
 
 for (i, j) in Q:
     if i not in cycles and j not in cycles:
-        solver.Add(start_time[i] + d[i] <= start_time[j])
+        model.Add(start_time[i] + d[i] <= start_time[j])
 
 for i in range(n):
     if i not in cycles:
-        solver.Add(solver.Sum(x[(i, j)] for j in range(m) if (i, j) in C) <= 1)
+        model.Add(sum(x[(i, j)] for j in range(m) if (i, j) in C) <= 1)
 
-completion_time = solver.IntVar(0, 1e6, 'completion_time')
+completion_time = model.NewIntVar(0, LARGE_NUMBER, 'completion_time')
 for i in range(n):
     if i not in cycles:
-        solver.Add(start_time[i] + d[i] <= completion_time)
+        model.Add(start_time[i] + d[i] <= completion_time)
 
-solver.Add(solver.Sum(x[(i, j)] for i in range(n) for j in range(m) if (i, j) in C and i not in cycles) >= max_tasks)
-# objective
-solver.Minimize(completion_time)
+model.Add(sum(x[(i, j)] for i in range(n) for j in range(m) if (i, j) in C and i not in cycles) >= max_tasks)
 
-status = solver.Solve()
+model.Minimize(completion_time)
 
-if status==pywraplp.Solver.INFEASIBLE:
+solver = cp_model.CpSolver()
+solver.parameters.num_search_workers = 1
+solver.parameters.max_time_in_seconds = 5
+status = solver.Solve(model)
+
+if status == cp_model.INFEASIBLE:
     print('Infeasible min_completion_time')
     exit()
 
-completion_time = solver.Objective().Value()
-
+min_completion_time = int(solver.ObjectiveValue())
+del solver
+del model
 # ---------------------------------------------------------------------
 # optimize the third objective
-solver = pywraplp.Solver.CreateSolver('SCIP')
+print('Optimize the third objective')
+model = cp_model.CpModel()
 
-# variables
 x = {}
 for i in range(n):
     for j in range(m):
         if (i, j) in C and i not in cycles:
-            x[(i, j)] = solver.IntVar(0, 1, f'x_{i}_{j}')
+            x[(i, j)] = model.NewBoolVar(f'x_{i}_{j}')
 
 start_time = {}
 for i in range(n):
     if i not in cycles:
-        start_time[i] = solver.IntVar(0, solver.infinity(), f'start_time_{i}')
+        start_time[i] = model.NewIntVar(0, LARGE_NUMBER, f'start_time_{i}')
 
-# constraints
 for i in range(n):
-    for j in range(m):  
+    for j in range(m):
         if (i, j) in C and i not in cycles:
-            solver.Add(start_time[i] >= s[j] * x[(i, j)])
+            model.Add(start_time[i] >= s[j] * x[(i, j)])
 
 for (i, j) in Q:
     if i not in cycles and j not in cycles:
-        solver.Add(start_time[i] + d[i] <= start_time[j])
+        model.Add(start_time[i] + d[i] <= start_time[j])
 
 for i in range(n):
     if i not in cycles:
-        solver.Add(solver.Sum(x[(i, j)] for j in range(m) if (i, j) in C) <= 1)
+        model.Add(sum(x[(i, j)] for j in range(m) if (i, j) in C) <= 1)
 
 for i in range(n):
     if i not in cycles:
-        solver.Add(start_time[i] + d[i] <= completion_time)
+        model.Add(start_time[i] + d[i] <= min_completion_time)
 
-solver.Add(solver.Sum(x[(i, j)] for i in range(n) for j in range(m) if (i, j) in C and i not in cycles) >= max_tasks)
-# objective
-solver.Minimize(
-    solver.Sum(x[(i, j)] * C[(i, j)] for i in range(n) for j in range(m) 
-               if (i, j) in C and i not in cycles)
+model.Add(sum(x[(i, j)] for i in range(n) for j in range(m) if (i, j) in C and i not in cycles) >= max_tasks)
+
+model.Minimize(
+    sum(
+        [x[(i, j)] * C[(i, j)] for i in range(n) for j in range(m) 
+         if (i, j) in C and i not in cycles]
+    )
 )
 
-status = solver.Solve()
+solver = cp_model.CpSolver()
+solver.parameters.num_search_workers = 1
+solver.parameters.max_time_in_seconds = 5
+status = solver.Solve(model)
 
-if status == pywraplp.Solver.OPTIMAL or status == pywraplp.Solver.FEASIBLE:
-    print(int(max_tasks))
+if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+    print(max_tasks)
     for i in range(n):
         for j in range(m):
             if i not in cycles:
                 # print(x[(i, j)].solution_value(), end=' ')
-                if (i, j) in C and x[(i, j)].solution_value() == 1:
-                    print(i+1, j+1, int(start_time[i].solution_value()))
-elif status == pywraplp.Solver.INFEASIBLE:
+                if (i, j) in C and solver.Value(x[(i, j)]) == 1:
+                    print(i+1, j+1, int(solver.Value(start_time[i]))) 
+
+elif status == cp_model.INFEASIBLE:
     print('Infeasible min_cost')
+elif status == cp_model.MODEL_INVALID:
+    print('Model invalid min_cost')
