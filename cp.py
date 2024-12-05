@@ -70,7 +70,7 @@ cycles = set(itertools.chain(*find_cycles(Q)))
 
 # ---------------------------------------------------------------------
 # optimize the first objective
-print('Optimize the first objective')
+# print('Optimize the first objective')
 from ortools.sat.python import cp_model
 
 model = cp_model.CpModel()
@@ -127,7 +127,7 @@ max_tasks = int(solver.ObjectiveValue())
 
 # ---------------------------------------------------------------------
 # optimize the second objective
-print('Optimize the second objective')
+# print('Optimize the second objective')
 model = cp_model.CpModel()
 
 x = {}
@@ -177,7 +177,7 @@ del solver
 del model
 # ---------------------------------------------------------------------
 # optimize the third objective
-print('Optimize the third objective')
+# print('Optimize the third objective')
 model = cp_model.CpModel()
 
 x = {}
