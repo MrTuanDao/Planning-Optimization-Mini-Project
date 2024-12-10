@@ -6,7 +6,10 @@ method = sys.argv[1]
 def read_tc(tc_file):
     lines = open(tc_file).read().strip().split('\n')
     n, q = map(int, lines[0].split())
-    Q = [tuple(map(int, line.split())) for line in lines[1:q+1]]
+    Q = []
+    for line in lines[1:q+1]:
+        task_1, task_2 = map(int, line.split())
+        Q.append((task_1-1, task_2-1))
     d = list(map(int, lines[q+1].split()))
     m = int(lines[q+2])
     s = list(map(int, lines[q+3].split()))
@@ -17,7 +20,26 @@ def read_tc(tc_file):
         C[(i-1, j-1)] = cost
     return n, q, Q, d, m, s, c, C
 
-def check(output, rs, tc_file):
+def check(output, rs, tc_file, Q):
+    # check constraint of output
+    lines = output.split('\n')
+    completion_time = {task: 0 for task in range(n)}
+
+    results = []
+    for line in lines[1:]:
+        task, team, start_time = map(int, line.split())
+        results.append((task-1, team-1, start_time))
+        completion_time[task-1] = start_time + d[task-1]
+
+    for task, team, start_time in results:
+        for task_1, task_2 in Q:
+            if task_2 == task:
+                if completion_time[task_1] > start_time:
+                    print(f'Testcase {tc_file} failed. \
+                          Task {task_1+1} is done at {completion_time[task_1]} but task {task+1} is assigned to team {team} at {start_time}')
+                    return False
+
+
     sol_task_count, sol_completion_time, sol_cost = compute_solution(output, task_duration, cost_matrix)
     rs_task_count, rs_completion_time, rs_cost = compute_solution(rs, task_duration, cost_matrix)
 
@@ -63,12 +85,14 @@ if __name__ == '__main__':
         output = result.stdout
         
         try:    
-            if check(output.strip(), rs.strip(), tc_file):
+            if check(output.strip(), rs.strip(), tc_file, Q):
                 score += 100
-        except:
-            print(f'Testcase {tc_file} error')
-            print(output)
+        except Exception as e:
+            print(f'Testcase {tc_file} error: {e}')
+            import traceback
+            traceback.print_exc()
+            break
 
     print(f'Score: {score}/1000')
-    with open(f'results/{method[:-3]}.txt', 'a') as f:
-        f.write(f'{score}\n')
+    # with open(f'results/{method[:-3]}.txt', 'a') as f:
+    #     f.write(f'{score}\n')
