@@ -1,6 +1,5 @@
 import random
 
-
 def my_input():
     # number of tasks, number of constraints
     n, q = map(int, input().split())

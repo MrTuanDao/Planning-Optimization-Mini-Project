@@ -23,6 +23,7 @@ for _ in range(c):
     i, j, cost = map(int, input().split())
     C[(i-1, j-1)] = cost
 
+
 def find_cycles(edges):
     def dfs(v, visited, stack, path):
         # Đánh dấu đỉnh hiện tại là đã thăm
@@ -68,30 +69,31 @@ def find_cycles(edges):
 import itertools
 cycles = set(itertools.chain(*find_cycles(Q)))
 
+for task in cycles:
+    for task_1, team in C.copy():
+        if task_1 == task:
+            C.pop((task_1, team))
+
+available_task = []
+for task, team in C:
+    if task in cycles:
+        continue
+
+    if task not in available_task:
+        available_task.append(task)
+
+for task_1, task_2 in Q.copy():
+    if task_1 not in available_task or task_2 not in available_task:
+        Q.remove((task_1, task_2))
+        
 #--------------------------------------------------------------------------------
 def greedy_min_starttime():
     results = [] # (task, team, start_time)
     
     available_time = {team: s[team] for team in range(m)}
     completion_time = {task: 1e9 for task in range(n)}
-    for task in cycles:
-        for task, team in C:
-            if task == task:
-                C.pop((task, team))
 
-    available_task = []
-    for task, team in C:
-        if task in cycles:
-            continue
-
-        if task not in available_task:
-            available_task.append(task)
-
-    for task_1, task_2 in Q.copy():
-        if task_1 not in available_task or task_2 not in available_task:
-            Q.remove((task_1, task_2))
-
-    task_do_not_have_pre_task = []
+    task_do_not_have_pre_task = set()
     for task, team in C:
         task_have_pre_task = False
         for task_1, task_2 in Q:
@@ -100,19 +102,26 @@ def greedy_min_starttime():
                 break
 
         if not task_have_pre_task:
-            task_do_not_have_pre_task.append(task)
+            task_do_not_have_pre_task.add(task)
 
     for task in task_do_not_have_pre_task:
         min_available_time = 1e9
         min_available_team = -1
+        min_cost = 1e9
         for task_1, team in C:
             if task_1 == task:
+                if available_time[team] == min_available_time and C[(task_1, team)] < min_cost:
+                    min_available_time = available_time[team]
+                    min_available_team = team
+                    min_cost = C[(task_1, team)]
+                    continue
+
                 if available_time[team] < min_available_time:
                     min_available_time = available_time[team]
                     min_available_team = team
-
-        if min_available_team == -1:
-            continue
+                    min_cost = C[(task_1, team)]
+                
+        assert min_available_team != -1, 'All tasks do not have pre-task should be assigned to a team'
 
         available_time[min_available_team] = min_available_time + d[task]
         completion_time[task] = available_time[min_available_team]
@@ -127,6 +136,7 @@ def greedy_min_starttime():
         min_available_time = 1e9
         min_available_team = -1
         min_available_task = -1
+        min_cost = 1e9
         # pre_task_completion_time = []
         # pre_task = []
         for (task, team) in C:
@@ -146,12 +156,26 @@ def greedy_min_starttime():
                         pre_task.append(task_1)
 
             max_pre_task_completion_time = max(pre_task_completion_time) if pre_task_completion_time else 1e9
+            if max_pre_task_completion_time == min_available_time and C[(task, team)] < min_cost:
+                min_cost = C[(task, team)]
+                min_available_team = team
+                min_available_task = task
+                continue
+
             if max_pre_task_completion_time < min_available_time:
                 min_available_time = max_pre_task_completion_time
                 min_available_team = team
                 min_available_task = task
+                min_cost = C[(task, team)]
 
             if continue_flag_if_pre_task_not_done:
+                continue
+
+            if available_time[team] == min_available_time and C[(task, team)] < min_cost:
+                min_available_time = available_time[team]
+                min_available_team = team
+                min_available_task = task
+                min_cost = C[(task, team)]
                 continue
 
             if available_time[team] < min_available_time:  
