@@ -191,13 +191,13 @@ def feasible_result(n, q, Q, d, m, s, c, C):
                 cost.pop((task_1, team_1))
 
     results = calculate_start_time(pre_results, d, s, Q)
-    return results
+    return pre_results, results
 
-def neighbor_result(results, task_and_team):
+def tabu_neighbor_result(results, task_and_team, tabu_list: list):
     pre_results = []
     for task, team, start_time in results:
         pre_results.append((task, team))
-    
+
     TRY_COUNT_1 = 100
     TRY_COUNT_2 = 100
     cannot_find_neighbor = True
@@ -225,6 +225,9 @@ def neighbor_result(results, task_and_team):
             cannot_find_neighbor = True
             break
 
+        if pre_results in tabu_list:
+            continue
+
         results = calculate_start_time(pre_results, d, s, Q)
 
         cannot_find_neighbor = False
@@ -233,16 +236,20 @@ def neighbor_result(results, task_and_team):
     if cannot_find_neighbor:
         return None
     else:
+        tabu_list.append(pre_results)
         return results
 
-def local_search(n, q, Q, d, m, s, c, C, task_and_team):
-    results = feasible_result(n, q, Q, d, m, s, c, C)
+def tabu_search(n, q, Q, d, m, s, c, C, task_and_team):
+    pre_results, results = feasible_result(n, q, Q, d, m, s, c, C)
     best_results = results
 
     STUCK_COUNT_LIMIT = 50
     stuck_count = 0
+    tabu_list = [pre_results] # only save pre_results, not results
     while True:
-        results = neighbor_result(best_results, task_and_team)
+        results = tabu_neighbor_result(best_results, task_and_team, tabu_list)
+        if results is None:
+            break
 
         if compare_results(results, best_results):
             # print(f'Improvement: {calculate_result(results, d, C)} from {calculate_result(best_results, d, C)}')
@@ -267,7 +274,7 @@ def task_and_team_pair(C):
 if __name__ == '__main__':
     n, q, Q, d, m, s, c, C = my_input()
     task_and_team = task_and_team_pair(C)
-    results = local_search(n, q, Q, d, m, s, c, C, task_and_team)
+    results = tabu_search(n, q, Q, d, m, s, c, C, task_and_team)
     print(len(results))
     for task, team, start_time in results:
         print(task+1, team+1, start_time)
