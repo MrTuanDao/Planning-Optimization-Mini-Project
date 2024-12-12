@@ -315,6 +315,7 @@ def GA(Q, d, s, C, task_and_team):
         if pre_best_result == best_result:
             stuck_generation += 1
         else:
+            # print(f'Improvement in generation {generation} from {calculate_result(pre_best_result, d, C)} to {calculate_result(best_result, d, C)}')
             stuck_generation = 0
 
         if stuck_generation >= STUCK_GENERATION_LIMIT:
@@ -340,7 +341,7 @@ if __name__ == '__main__':
         print(task+1, team+1, start_time)
 
     check_constraint(results, Q, s)    
-    print(calculate_result(results, d, C))
+    # print(calculate_result(results, d, C))
 
     # for seed in range(100):
     #     random.seed(seed)
