@@ -1,7 +1,8 @@
-STUCK_COUNT_LIMIT = 50
 FIND_NEIGHBOR_TRY = 100
 CHANGE_TEAM_TRY = 100
+STUCK_COUNT_LIMIT = 50
 
+import math
 import random
 
 def my_input():
@@ -186,7 +187,7 @@ def calculate_start_time(pre_results: list, duration, team_start_time, Q):
 
     return results
 
-def feasible_result(n, q, Q, d, m, s, c, C):
+def feasible_result(Q, d, s, C):
     # create a random (task, team) assignment and order then calculate start time
     cost = C.copy()
 
@@ -241,18 +242,48 @@ def neighbor_result(results, task_and_team):
         return None
     else:
         return results
+    
+def S_Metropolis(current_result, task_and_team, temperature, Q, d, s, C):
+    neighbor = neighbor_result(current_result, task_and_team)
+    if neighbor is None:
+        return current_result
+    
+    task_count_1, completion_time_1, cost_1 = calculate_result(current_result, d, C)
+    task_count_2, completion_time_2, cost_2 = calculate_result(neighbor, d, C)
 
-def local_search(n, q, Q, d, m, s, c, C, task_and_team):
-    results = feasible_result(n, q, Q, d, m, s, c, C)
-    best_results = results
+    assert task_count_1 == task_count_2, "All solutions must have the same number of tasks"
 
+    if completion_time_1 < completion_time_2:
+        return current_result
+    elif completion_time_1 == completion_time_2:
+        if cost_1 <= cost_2:
+            return current_result
+        else:
+            probability = 1 / math.exp((cost_2 - cost_1) / cost_2 / temperature)
+    else:
+        probability = math.exp((completion_time_2 - completion_time_1) / completion_time_2 / temperature)
+    
+    if random.random() < probability:
+        return feasible_result(Q, d, s, C)
+    else:
+        return neighbor
+
+def simulated_annealing(Q, d, s, C, task_and_team):
+    results = feasible_result(Q, d, s, C)
+    global_best_results = results.copy()
+    local_best_results = results.copy()
+
+    temperature = 1
     stuck_count = 0
     while True:
-        results = neighbor_result(best_results, task_and_team)
+        results = S_Metropolis(local_best_results, task_and_team, temperature, Q, d, s, C)
+        temperature *= 0.99
 
-        if compare_results(results, best_results):
+        if compare_results(results, local_best_results):
             # print(f'Improvement: {calculate_result(results, d, C)} from {calculate_result(best_results, d, C)}')
-            best_results = results
+            local_best_results = results
+            if compare_results(local_best_results, global_best_results):
+                global_best_results = local_best_results
             stuck_count = 0
         else:
             stuck_count += 1
@@ -260,7 +291,7 @@ def local_search(n, q, Q, d, m, s, c, C, task_and_team):
         if stuck_count > STUCK_COUNT_LIMIT:
             break
 
-    return best_results
+    return global_best_results
 
 def task_and_team_pair(C):
     task_and_team = {}
@@ -273,7 +304,7 @@ def task_and_team_pair(C):
 if __name__ == '__main__':
     n, q, Q, d, m, s, c, C = my_input()
     task_and_team = task_and_team_pair(C)
-    results = local_search(n, q, Q, d, m, s, c, C, task_and_team)
+    results = simulated_annealing(Q, d, s, C, task_and_team)
     print(len(results))
     for task, team, start_time in results:
         print(task+1, team+1, start_time)

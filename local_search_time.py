@@ -1,3 +1,6 @@
+SEARCH_COUNT = 1000
+EARLY_STOP_COUNT = 100
+
 import random
 
 def my_input():
@@ -184,8 +187,7 @@ def local_search(results, n, q, Q, d, m, s, c, Cost, cycles):
         new_results[(task, team)] = start_time
     results = new_results
 
-    SEARCH_COUNT = 1000
-    EARLY_STOP_COUNT = 100
+
     early_stop_count = EARLY_STOP_COUNT
     for _ in range(SEARCH_COUNT):
         max_time = 0

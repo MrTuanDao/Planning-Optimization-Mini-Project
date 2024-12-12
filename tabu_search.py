@@ -1,3 +1,7 @@
+TRY_COUNT_1 = 100
+TRY_COUNT_2 = 100
+STUCK_COUNT_LIMIT = 50
+
 import random
 
 def my_input():
@@ -198,8 +202,6 @@ def tabu_neighbor_result(results, task_and_team, tabu_list: list):
     for task, team, start_time in results:
         pre_results.append((task, team))
 
-    TRY_COUNT_1 = 100
-    TRY_COUNT_2 = 100
     cannot_find_neighbor = True
     for _ in range(TRY_COUNT_1):
         # swap order of (task, team) of 2 random tasks
@@ -243,7 +245,6 @@ def tabu_search(n, q, Q, d, m, s, c, C, task_and_team):
     pre_results, results = feasible_result(n, q, Q, d, m, s, c, C)
     best_results = results
 
-    STUCK_COUNT_LIMIT = 50
     stuck_count = 0
     tabu_list = [pre_results] # only save pre_results, not results
     while True:
