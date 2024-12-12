@@ -1,8 +1,10 @@
 TRY_COUNT_1 = 100
 TRY_COUNT_2 = 100
 STUCK_COUNT_LIMIT = 50
+TIME_LIMIT = 10 # seconds
 
 import random
+import time
 
 def my_input():
     # number of tasks, number of constraints
@@ -247,7 +249,8 @@ def tabu_search(n, q, Q, d, m, s, c, C, task_and_team):
 
     stuck_count = 0
     tabu_list = [pre_results] # only save pre_results, not results
-    while True:
+    start_time_TS = time.time()
+    while time.time() - start_time_TS < TIME_LIMIT:
         results = tabu_neighbor_result(best_results, task_and_team, tabu_list)
         if results is None:
             break

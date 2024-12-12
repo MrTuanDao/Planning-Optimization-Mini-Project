@@ -1,9 +1,11 @@
 FIND_NEIGHBOR_TRY = 100
 CHANGE_TEAM_TRY = 100
 STUCK_COUNT_LIMIT = 50
+TIME_LIMIT = 10 # seconds
 
 import math
 import random
+import time
 
 def my_input():
     # number of tasks, number of constraints
@@ -275,7 +277,8 @@ def simulated_annealing(Q, d, s, C, task_and_team):
 
     temperature = 1
     stuck_count = 0
-    while True:
+    start_time_SA = time.time()
+    while time.time() - start_time_SA < TIME_LIMIT:
         results = S_Metropolis(local_best_results, task_and_team, temperature, Q, d, s, C)
         temperature *= 0.99
 

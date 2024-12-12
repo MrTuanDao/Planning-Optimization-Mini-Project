@@ -6,8 +6,10 @@ STUCK_GENERATION_LIMIT = 10
 FIND_NEIGHBOR_TRY = 100
 CHANGE_TEAM_TRY = 100
 
-import random
+TIME_LIMIT = 10 # seconds
 
+import random
+import time
 def my_input():
     # number of tasks, number of constraints
     n, q = map(int, input().split())
@@ -289,8 +291,10 @@ def GA(Q, d, s, C, task_and_team):
     for _ in range(population_size):
         population.append(feasible_result(Q, d, s, C))
 
+    stuck_generation = 0
     generation = 0
-    while generation < MAX_GENERATION:
+    start_time_GA = time.time()
+    while generation < MAX_GENERATION and time.time() - start_time_GA < TIME_LIMIT:
         # select the best population
         best_population = sorted(population, key=lambda x: (-calculate_result(x, d, C)[0], calculate_result(x, d, C)[1], calculate_result(x, d, C)[2]))[:population_size // 2]
 

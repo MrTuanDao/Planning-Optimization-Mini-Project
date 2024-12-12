@@ -1,7 +1,8 @@
-SEARCH_COUNT = 1000
 EARLY_STOP_COUNT = 100
+TIME_LIMIT = 10 # seconds
 
 import random
+import time
 
 def my_input():
     # number of tasks, number of constraints
@@ -189,7 +190,8 @@ def local_search(results, n, q, Q, d, m, s, c, Cost, cycles):
 
 
     early_stop_count = EARLY_STOP_COUNT
-    for _ in range(SEARCH_COUNT):
+    start_time_LS = time.time()
+    while time.time() - start_time_LS < TIME_LIMIT:
         max_time = 0
         for (task, team), start_time in results.items():
             if start_time > max_time:

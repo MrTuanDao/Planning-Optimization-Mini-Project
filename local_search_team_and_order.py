@@ -1,8 +1,10 @@
 STUCK_COUNT_LIMIT = 50
 FIND_NEIGHBOR_TRY = 100
 CHANGE_TEAM_TRY = 100
+TIME_LIMIT = 10 # seconds
 
 import random
+import time
 
 def my_input():
     # number of tasks, number of constraints
@@ -247,7 +249,8 @@ def local_search(n, q, Q, d, m, s, c, C, task_and_team):
     best_results = results
 
     stuck_count = 0
-    while True:
+    start_time_LS = time.time()
+    while time.time() - start_time_LS < TIME_LIMIT:
         results = neighbor_result(best_results, task_and_team)
 
         if compare_results(results, best_results):
