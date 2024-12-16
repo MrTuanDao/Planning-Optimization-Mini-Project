@@ -1,7 +1,7 @@
 FIND_NEIGHBOR_TRY = 100
 CHANGE_TEAM_TRY = 100
-STUCK_COUNT_LIMIT = 50
-TIME_LIMIT = 10 # seconds
+STUCK_COUNT_LIMIT = 100
+TIME_LIMIT = 5 # seconds
 
 import math
 import random

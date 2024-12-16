@@ -1,3 +1,7 @@
+TIME_LIMIT = 5 # seconds
+
+import time
+
 # number of tasks, number of constraints
 n, q = map(int, input().split())
 
@@ -131,7 +135,8 @@ def greedy_min_starttime():
             if task_1 == task:
                 C.pop((task_1, team))
 
-    while C:        
+    start_time_ = time.time()
+    while C and time.time() - start_time_ < TIME_LIMIT:        
         # get team and task that has least available time
         min_available_time = 1e9
         min_available_team = -1

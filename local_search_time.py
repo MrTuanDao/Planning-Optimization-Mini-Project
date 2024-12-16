@@ -1,5 +1,5 @@
 EARLY_STOP_COUNT = 100
-TIME_LIMIT = 10 # seconds
+TIME_LIMIT = 5 # seconds
 
 import random
 import time

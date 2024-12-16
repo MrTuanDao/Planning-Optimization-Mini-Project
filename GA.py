@@ -1,7 +1,7 @@
-INITIAL_POPULATION_SIZE = 20
+INITIAL_POPULATION_SIZE = 10
 MAX_POPULATION_SIZE = 50
-MAX_GENERATION = 100
-STUCK_GENERATION_LIMIT = 10
+MAX_GENERATION = 200
+STUCK_GENERATION_LIMIT = 50
 
 FIND_NEIGHBOR_TRY = 100
 CHANGE_TEAM_TRY = 100
@@ -242,7 +242,7 @@ def crossover(parent_1, parent_2):
 
     return child_1, child_2
 
-def mutation(parent):
+def mutation(parent, task_and_team):
     pre_results = []
     for task, team, start_time in parent:
         pre_results.append((task, team))
@@ -281,36 +281,52 @@ def mutation(parent):
         return None
     else:
         return results
+    
+def check_time_limit(start_time_GA):
+    # print(time.time() - start_time_GA)
+    return time.time() - start_time_GA < TIME_LIMIT
 
 def GA(Q, d, s, C, task_and_team):
+    start_time_GA = time.time()
     best_result = feasible_result(Q, d, s, C)
 
     population_size = INITIAL_POPULATION_SIZE
     # create a random population
-    population = []
+    population = [best_result]
     for _ in range(population_size):
         population.append(feasible_result(Q, d, s, C))
+        if not check_time_limit(start_time_GA):
+            break
 
     stuck_generation = 0
     generation = 0
     start_time_GA = time.time()
-    while generation < MAX_GENERATION and time.time() - start_time_GA < TIME_LIMIT:
+    while generation < MAX_GENERATION and check_time_limit(start_time_GA):
+        num_best_population = max(population_size // 2, 2)
         # select the best population
-        best_population = sorted(population, key=lambda x: (-calculate_result(x, d, C)[0], calculate_result(x, d, C)[1], calculate_result(x, d, C)[2]))[:population_size // 2]
+        best_population = sorted(population, key=lambda x: (-calculate_result(x, d, C)[0], calculate_result(x, d, C)[1], calculate_result(x, d, C)[2]))[:num_best_population]
+
+        if not check_time_limit(start_time_GA):
+            break
 
         # crossover
-        for _ in range(population_size // 2):
+        for _ in range(num_best_population):
             parent_1, parent_2 = random.sample(best_population, 2)
             child_1, child_2 = crossover(parent_1, parent_2)
             population.append(child_1)
             population.append(child_2)
 
+        if not check_time_limit(start_time_GA):
+            break
+
         # mutation
-        for _ in range(population_size // 2):
+        for _ in range(num_best_population):
             parent_1 = random.choice(best_population)
-            child_1 = mutation(parent_1)
+            child_1 = mutation(parent_1, task_and_team)
             population.append(child_1)
 
+        if not check_time_limit(start_time_GA):
+            break
 
         # update best result
         pre_best_result = best_result
@@ -325,6 +341,9 @@ def GA(Q, d, s, C, task_and_team):
         if stuck_generation >= STUCK_GENERATION_LIMIT:
             break
 
+        if not check_time_limit(start_time_GA):
+            break
+
         # update population size
         population_size = len(population)
         if population_size > MAX_POPULATION_SIZE:
@@ -333,6 +352,7 @@ def GA(Q, d, s, C, task_and_team):
 
         generation += 1
 
+    # print(time.time() - start_time_GA)
     return best_result
 
 if __name__ == '__main__':
@@ -344,7 +364,7 @@ if __name__ == '__main__':
     for task, team, start_time in results:
         print(task+1, team+1, start_time)
 
-    check_constraint(results, Q, s)    
+    # check_constraint(results, Q, s)    
     # print(calculate_result(results, d, C))
 
     # for seed in range(100):

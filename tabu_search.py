@@ -1,7 +1,7 @@
 TRY_COUNT_1 = 100
 TRY_COUNT_2 = 100
-STUCK_COUNT_LIMIT = 50
-TIME_LIMIT = 10 # seconds
+STUCK_COUNT_LIMIT = 100
+TIME_LIMIT = 5 # seconds
 
 import random
 import time

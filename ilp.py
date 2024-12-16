@@ -66,54 +66,71 @@ def find_cycles(edges):
     return cycles
 import itertools
 cycles = set(itertools.chain(*find_cycles(Q)))
-# print(cycles)
+for task in cycles:
+    for task_1, team in C.copy():
+        if task_1 == task:
+            C.pop((task_1, team))
+
+available_task = []
+for task, team in C:
+    if task in cycles:
+        continue
+
+    if task not in available_task:
+        available_task.append(task)
+
+for task_1, task_2 in Q.copy():
+    if task_1 not in available_task or task_2 not in available_task:
+        Q.remove((task_1, task_2))
+
+max_tasks = len(available_task)
 
 # ---------------------------------------------------------------------
 # optimize the first objective
 from ortools.linear_solver import pywraplp
 
-solver = pywraplp.Solver.CreateSolver('SCIP')
-# variables
-x = {}
-for i in range(n):
-    for j in range(m):
-        if (i, j) in C and i not in cycles:
-            x[(i, j)] = solver.IntVar(0, 1, f'x_{i}_{j}')
+# solver = pywraplp.Solver.CreateSolver('SCIP')
+# # variables
+# x = {}
+# for i in range(n):
+#     for j in range(m):
+#         if (i, j) in C and i not in cycles:
+#             x[(i, j)] = solver.IntVar(0, 1, f'x_{i}_{j}')
 
-start_time = {}
-for i in range(n):
-    if i not in cycles:
-        start_time[i] = solver.IntVar(0, solver.infinity(), f'start_time_{i}')
+# start_time = {}
+# for i in range(n):
+#     if i not in cycles:
+#         start_time[i] = solver.IntVar(0, solver.infinity(), f'start_time_{i}')
 
-# constraints
-for i in range(n):
-    for j in range(m):  
-        if (i, j) in C and i not in cycles:
-            solver.Add(start_time[i] >= s[j] * x[(i, j)])
+# # constraints
+# for i in range(n):
+#     for j in range(m):  
+#         if (i, j) in C and i not in cycles:
+#             solver.Add(start_time[i] >= s[j] * x[(i, j)])
 
-for (i, j) in Q:
-    if i not in cycles and j not in cycles:
-        solver.Add(start_time[i] + d[i] <= start_time[j])
+# for (i, j) in Q:
+#     if i not in cycles and j not in cycles:
+#         solver.Add(start_time[i] + d[i] <= start_time[j])
 
-for i in range(n):
-    if i not in cycles:
-        solver.Add(solver.Sum(x[(i, j)] for j in range(m) if (i, j) in C) <= 1)
+# for i in range(n):
+#     if i not in cycles:
+#         solver.Add(solver.Sum(x[(i, j)] for j in range(m) if (i, j) in C) <= 1)
 
-completion_time = solver.IntVar(0, 1e6, 'completion_time')
-for i in range(n):
-    if i not in cycles:
-        solver.Add(start_time[i] + d[i] <= completion_time)
+# completion_time = solver.IntVar(0, 1e6, 'completion_time')
+# for i in range(n):
+#     if i not in cycles:
+#         solver.Add(start_time[i] + d[i] <= completion_time)
 
-# objective
-solver.Maximize(solver.Sum(x[(i, j)] for i in range(n) for j in range(m) if (i, j) in C and i not in cycles))
+# # objective
+# solver.Maximize(solver.Sum(x[(i, j)] for i in range(n) for j in range(m) if (i, j) in C and i not in cycles))
 
-status = solver.Solve()
+# status = solver.Solve()
 
-if status==pywraplp.Solver.INFEASIBLE:
-    print('Infeasible max_tasks')
-    exit()
+# if status==pywraplp.Solver.INFEASIBLE:
+#     print('Infeasible max_tasks')
+#     exit()
 
-max_tasks = solver.Objective().Value()
+# max_tasks = solver.Objective().Value()
 
 # ---------------------------------------------------------------------
 # optimize the second objective
