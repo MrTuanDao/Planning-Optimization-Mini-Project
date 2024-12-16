@@ -96,62 +96,60 @@ def my_input():
     return n, q, Q, d, m, s, c, C, cycles
 
 #--------------------------------------------------------------------------------
-def random_assignment(n, q, Q, d, m, s, c, Cost: dict, cycles):
-    results = [] # (task, team, start_time)
-    
-    available_time = {team: s[team] for team in range(m)}
-    completion_time = {task: 1e9 for task in range(n)}
 
-    task_do_not_have_pre_task = set()
-    for task, team in Cost:
-        task_have_pre_task = False
-        for task_1, task_2 in Q:
-            if task_2 == task:
-                task_have_pre_task = True
-                break
+def feasible_result(Q, d, s, C):
+    # create a random (task, team) assignment and order then calculate start time
+    cost = C.copy()
 
-        if not task_have_pre_task:
-            task_do_not_have_pre_task.add(task)
-
-    for task in task_do_not_have_pre_task:
-        for task_1, team in Cost:
+    pre_results = []
+    while cost:
+        task, team = random.choice(list(cost.keys()))
+        pre_results.append((task, team))
+        
+        for task_1, team_1 in cost.copy():
             if task_1 == task:
-                results.append((task, team, available_time[team]))
-                available_time[team] += d[task]
-                completion_time[task] = available_time[team]
-                break
+                cost.pop((task_1, team_1))
 
-        for task_1, team in Cost.copy():
-            if task_1 == task:
-                Cost.pop((task_1, team))
+    results = calculate_start_time(pre_results, d, s, Q)
+    return results
 
-    while Cost:        
-        (task, team) = random.choice(list(Cost.keys()))
-        pre_task_complete_time = []
+def calculate_start_time(pre_results: list, duration, team_start_time, Q):
+    results = []
+    completion_time_of_task = {task: 1e9 for task in range(n)}
+    available_time_of_team = {team: team_start_time[team] for team in range(m)}
+
+    pop_position = 0
+    while pre_results:
+        task, team = pre_results.pop(pop_position)
+
+        # if pre_task is not completed, then skip, else start time is max of completion time of pre_task and available time of team
         continue_flag = False
+        pre_task_complete_time = []
         for task_1, task_2 in Q:
             if task_2 == task:
-                if completion_time[task_1] == 1e9: 
+                if completion_time_of_task[task_1] == 1e9:
+                    pre_results.insert(pop_position, (task_2, team))
+                    pop_position += 1
                     continue_flag = True
                     break
-                pre_task_complete_time.append(completion_time[task_1])
+                if completion_time_of_task[task_1] > available_time_of_team[team]:
+                    pre_task_complete_time.append(completion_time_of_task[task_1])
         
-        if continue_flag: continue
+        if continue_flag:
+            continue
 
         if len(pre_task_complete_time) != 0:
             max_pre_task_complete_time = max(pre_task_complete_time)
-            start_time = max(max_pre_task_complete_time, available_time[team])
+            start_time = max(max_pre_task_complete_time, available_time_of_team[team])
         else:
-            start_time = available_time[team]
+            start_time = available_time_of_team[team]
 
         results.append((task, team, start_time))
-        available_time[team] += d[task]
-        completion_time[task] = start_time + d[task]
+        completion_time_of_task[task] = start_time + duration[task]
+        available_time_of_team[team] = start_time + duration[task]
 
-        for task_1, team_1 in Cost.copy():
-            if task_1==task: 
-                Cost.pop((task_1, team_1))
-    
+        pop_position = 0
+
     return results
 
 def check_constraint(results, Q, s):
@@ -213,8 +211,8 @@ def local_search(results, n, q, Q, d, m, s, c, Cost, cycles):
         task_and_team = [(task, team) for (task, team), start_time in results.items()]
         task_do_not_have_pre_task = []
         for task, team in task_and_team:
+            continue_flag = False
             for task_1, task_2 in Q:
-                continue_flag = False
                 if task_2 == task:
                     if completion_time_of_task[task_1] > random_timepoint or completion_time_of_task[task_2] < random_timepoint:
                         continue_flag = True
@@ -265,10 +263,10 @@ def local_search(results, n, q, Q, d, m, s, c, Cost, cycles):
 
 if __name__=='__main__':
     n, q, Q, d, m, s, c, C, cycles = my_input()
-    results = random_assignment(n, q, Q, d, m, s, c, C.copy(), cycles)
+    results = feasible_result(Q.copy(), d, s, C.copy())
     results = local_search(results, n, q, Q, d, m, s, c, C, cycles)
 
-    check_constraint(results, Q, s)
+    # check_constraint(results, Q, s)
     # print(calculate_result(results, d, C))
     
     print(len(results))
