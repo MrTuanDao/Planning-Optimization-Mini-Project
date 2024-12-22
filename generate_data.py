@@ -15,7 +15,15 @@ Q_matrix = [(random.randint(1, N), random.randint(1, N)) for _ in range(Q)]
 d = [random.randint(1, 1000) for _ in range(N)]
 
 # generate cost of each task
-C = [(random.randint(1, N), random.randint(1, M), random.randint(1, 1000)) for _ in range(K)]
+used_pairs = set()
+C = []
+while len(C) < K:
+    task = random.randint(1, N)
+    team = random.randint(1, M)
+    if (task, team) not in used_pairs:
+        cost = random.randint(1, 1000)
+        C.append((task, team, cost))
+        used_pairs.add((task, team))
 
 import os
 folder = 'synthetic_data'
