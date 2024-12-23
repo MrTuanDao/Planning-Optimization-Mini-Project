@@ -1,6 +1,3 @@
-STUCK_COUNT_LIMIT = 100
-TIME_LIMIT = 100 # seconds
-
 TRY_COUNT_1 = 100
 TRY_COUNT_2 = 100
 
@@ -77,22 +74,49 @@ def my_input():
         
         return cycles
 
+    def find_dependent_tasks(graph, cycles):
+        # Tìm tất cả các task phụ thuộc vào các task trong cycle
+        dependent_tasks = set(cycles)
+        queue = list(cycles)
+        
+        while queue:
+            current = queue.pop(0)
+            # Tìm tất cả các task phụ thuộc vào current
+            for u, v in Q:
+                if u == current and v not in dependent_tasks:
+                    dependent_tasks.add(v)
+                    queue.append(v)
+        
+        return dependent_tasks
+
+    # Tạo đồ thị từ các ràng buộc Q
+    graph = {}
+    for u, v in Q:
+        if u not in graph:
+            graph[u] = []
+        graph[u].append(v)
+
+    # Tìm các chu trình
     import itertools
     cycles = set(itertools.chain(*find_cycles(Q)))
 
-    for task in cycles:
-        for task_1, team in C.copy():
-            if task_1 == task:
-                C.pop((task_1, team))
+    # Tìm tất cả các task cần loại bỏ (trong chu trình và phụ thuộc)
+    tasks_to_remove = find_dependent_tasks(graph, cycles)
 
+    # Loại bỏ các task khỏi C
+    for task_1, team in C.copy():
+        if task_1 in tasks_to_remove:
+            C.pop((task_1, team))
+
+    # Tạo danh sách các task khả dụng
     available_task = []
     for task, team in C:
-        if task in cycles:
+        if task in tasks_to_remove:
             continue
-
         if task not in available_task:
             available_task.append(task)
 
+    # Cập nhật các ràng buộc Q
     pre_tasks = {task: [] for task in available_task}
     for task_1, task_2 in Q.copy():
         if task_1 not in available_task or task_2 not in available_task:
@@ -157,6 +181,7 @@ def calculate_start_time(pre_results: list, duration, team_start_time, Q, pre_ta
     completion_time_of_task = {task: 1e9 for task in range(n)}
     available_time_of_team = {team: team_start_time[team] for team in range(m)}
 
+    pre_results = pre_results.copy()
     pop_position = 0
     while pre_results:
         task, team = pre_results.pop(pop_position)
@@ -278,7 +303,7 @@ def tabu_select(best_pre_results, task_and_team, tabu_list: deque, pre_tasks: di
 
     return best_neighbor, best_pre_results
 
-def tabu_search(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team, initial_tabu_length=30, max_tabu_length=50, min_tabu_length=10):
+def tabu_search(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team, initial_tabu_length=30, max_tabu_length=50, min_tabu_length=10, stuck_count_limit=100, time_limit=100):
     # from greedy import greedy_min_starttime
     # best_results = greedy_min_starttime(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team)
     # best_pre_results = []
@@ -286,6 +311,7 @@ def tabu_search(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team, initial_tabu_l
     #     best_pre_results.append((task, team))
 
     best_pre_results, best_results = feasible_result(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team)
+    best_global_results = best_results.copy()
 
     stuck_count = 0
     tabu_length = initial_tabu_length
@@ -294,9 +320,11 @@ def tabu_search(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team, initial_tabu_l
     tabu_list.append(best_pre_results) # only save pre_results, not results
     start_time_TS = time.time()
     results_log = []
-    # while time.time() - start_time_TS < TIME_LIMIT and stuck_count < STUCK_COUNT_LIMIT:
-    while stuck_count < STUCK_COUNT_LIMIT:
-    # while time.time() - start_time_TS < TIME_LIMIT:
+    i = 0
+    # while time.time() - start_time_TS < time_limit and stuck_count < stuck_count_limit:
+    while stuck_count < stuck_count_limit:
+    # while time.time() - start_time_TS < time_limit:
+        i += 1
         stuck_count += 1
         results, pre_results = tabu_select(best_pre_results.copy(), task_and_team, tabu_list, pre_tasks, d, s, Q, n, m, C)
 
@@ -305,28 +333,37 @@ def tabu_search(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team, initial_tabu_l
             best_results = results
             stuck_count = 0
             tabu_list.append(best_pre_results)
-            # results_log.append(calculate_result(best_results, d, C))
+            results_log.append((i, calculate_result(best_results, d, C)))
             # print(calculate_result(results, d, C))
             # check_constraint(best_results, Q, s, pre_tasks)
             # Decrease Tabu Length for exploitation
             tabu_length = max(min_tabu_length, tabu_length - 1)
             tabu_list = deque(tabu_list, maxlen=tabu_length)
 
+            if compare_results(best_results, best_global_results, d, C):
+                best_global_results = best_results.copy()
         else:
             # Increase Tabu Length for exploration if stuck
             if stuck_count >= 5:  # Adjust threshold as needed
                 tabu_length = min(max_tabu_length, tabu_length + 1)
                 tabu_list = deque(tabu_list, maxlen=tabu_length)
 
-    return best_results
-    # return best_results, results_log
+        
+        # if stuck_count >= stuck_count_limit:
+        #     # shuffle best_pre_results
+        #     random.shuffle(best_pre_results)
+        #     best_results = calculate_start_time(best_pre_results, d, s, Q, pre_tasks, n, m)
+
+    # return best_results
+    results_log.append((i, calculate_result(best_results, d, C)))
+    return best_global_results, results_log
 
 if __name__ == '__main__':
     n, q, Q, d, m, s, c, C, pre_tasks, task_and_team = my_input()
-    results = tabu_search(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team)
-    print(len(results))
-    for task, team, start_time in results:
-        print(task+1, team+1, start_time)
+    results, _ = tabu_search(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team, time_limit=5)
+    # print(len(results))
+    # for task, team, start_time in results:
+    #     print(task+1, team+1, start_time)
 
     # check_constraint(results, Q, s, pre_tasks)    
     print(calculate_result(results, d, C))
