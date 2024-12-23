@@ -12,10 +12,14 @@ def my_input():
     n, q = map(int, input().split())
 
     # constraints pairs, (i, j) means task i must be completed before task
+    pre_tasks = {task: [] for task in range(n)}
+    post_tasks = {task: [] for task in range(n)}
     Q = []
     for _ in range(q):
         i, j = map(int, input().split())
         Q.append((i-1, j-1))
+        pre_tasks[j-1].append(i-1)
+        post_tasks[i-1].append(j-1)
 
     # duration of each task
     d = list(map(int, input().split()))
@@ -29,10 +33,11 @@ def my_input():
     # cost if team i is assigned to task j
     c = int(input())
     C = {}
+    task_and_team = {}
     for _ in range(c):
         i, j, cost = map(int, input().split())
         C[(i-1, j-1)] = cost
-
+        task_and_team[i-1] = task_and_team.get(i-1, []) + [j-1]
 
     def find_cycles(edges):
         def dfs(v, visited, stack, path):
@@ -76,25 +81,72 @@ def my_input():
         
         return cycles
 
+    def find_dependent_tasks(cycles):
+        # Tìm tất cả các task phụ thuộc vào các task trong cycle
+        dependent_tasks = set(cycles)
+        queue = list(cycles)
+        
+        while queue:
+            current = queue.pop(0)
+            # Tìm tất cả các task phụ thuộc vào current
+            for u, v in Q:
+                if u == current and v not in dependent_tasks:
+                    dependent_tasks.add(v)
+                    queue.append(v)
+        
+        return dependent_tasks
+
+    # Tạo đồ thị từ các ràng buộc Q
+    graph = {}
+    for u, v in Q:
+        if u not in graph:
+            graph[u] = []
+        graph[u].append(v)
+
+    # Tìm các chu trình
     import itertools
     cycles = set(itertools.chain(*find_cycles(Q)))
+    tasks_to_remove = find_dependent_tasks(cycles)
 
-    for task in cycles:
-        for task_1, team in C.copy():
-            if task_1 == task:
-                C.pop((task_1, team))
+    # 2. Tìm các task không có team nào có thể thực hiện
+    tasks_with_teams = set()
+    for task, team in C:
+        tasks_with_teams.add(task)
 
+    tasks_without_teams = set(range(n)) - tasks_with_teams
+    if tasks_without_teams:
+        # Thêm các task phụ thuộc vào tasks_without_teams
+        additional_tasks = find_dependent_tasks(tasks_without_teams)
+        # print("additional_tasks", additional_tasks)
+        tasks_to_remove.update(additional_tasks)
+
+    # Loại bỏ các task khỏi C
+    for task_1, team in C.copy():
+        if task_1 in tasks_to_remove:
+            C.pop((task_1, team))
+
+    # Tạo danh sách các task khả dụng
     available_task = []
     for task, team in C:
-        if task in cycles:
+        if task in tasks_to_remove:
             continue
-
         if task not in available_task:
             available_task.append(task)
 
+    # Cập nhật các ràng buộc Q
     for task_1, task_2 in Q.copy():
         if task_1 not in available_task or task_2 not in available_task:
             Q.remove((task_1, task_2))
+
+    pre_tasks = {task: [] for task in available_task}
+    for task_1, task_2 in Q:
+        pre_tasks[task_2].append(task_1)
+
+    task_and_team = {task: [] for task in available_task}
+    for task, team in C:
+        task_and_team[task].append(team)
+
+    # return n, q, Q, d, m, s, c, C, pre_tasks, task_and_team
 
     return n, q, Q, d, m, s, c, C
 
@@ -312,4 +364,5 @@ if __name__ == '__main__':
     for task, team, start_time in results:
         print(task+1, team+1, start_time)
 
-    check_constraint(results, Q, s)    
+    # check_constraint(results, Q, s)    
+    print(calculate_result(results, d, C))

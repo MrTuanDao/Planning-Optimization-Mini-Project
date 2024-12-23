@@ -16,10 +16,14 @@ def my_input():
     n, q = map(int, input().split())
 
     # constraints pairs, (i, j) means task i must be completed before task
+    pre_tasks = {task: [] for task in range(n)}
+    post_tasks = {task: [] for task in range(n)}
     Q = []
     for _ in range(q):
         i, j = map(int, input().split())
         Q.append((i-1, j-1))
+        pre_tasks[j-1].append(i-1)
+        post_tasks[i-1].append(j-1)
 
     # duration of each task
     d = list(map(int, input().split()))
@@ -33,10 +37,11 @@ def my_input():
     # cost if team i is assigned to task j
     c = int(input())
     C = {}
+    task_and_team = {}
     for _ in range(c):
         i, j, cost = map(int, input().split())
         C[(i-1, j-1)] = cost
-
+        task_and_team[i-1] = task_and_team.get(i-1, []) + [j-1]
 
     def find_cycles(edges):
         def dfs(v, visited, stack, path):
@@ -80,7 +85,7 @@ def my_input():
         
         return cycles
 
-    def find_dependent_tasks(graph, cycles):
+    def find_dependent_tasks(cycles):
         # Tìm tất cả các task phụ thuộc vào các task trong cycle
         dependent_tasks = set(cycles)
         queue = list(cycles)
@@ -105,9 +110,19 @@ def my_input():
     # Tìm các chu trình
     import itertools
     cycles = set(itertools.chain(*find_cycles(Q)))
+    tasks_to_remove = find_dependent_tasks(cycles)
 
-    # Tìm tất cả các task cần loại bỏ (trong chu trình và phụ thuộc)
-    tasks_to_remove = find_dependent_tasks(graph, cycles)
+    # 2. Tìm các task không có team nào có thể thực hiện
+    tasks_with_teams = set()
+    for task, team in C:
+        tasks_with_teams.add(task)
+
+    tasks_without_teams = set(range(n)) - tasks_with_teams
+    if tasks_without_teams:
+        # Thêm các task phụ thuộc vào tasks_without_teams
+        additional_tasks = find_dependent_tasks(tasks_without_teams)
+        # print("additional_tasks", additional_tasks)
+        tasks_to_remove.update(additional_tasks)
 
     # Loại bỏ các task khỏi C
     for task_1, team in C.copy():
@@ -123,13 +138,14 @@ def my_input():
             available_task.append(task)
 
     # Cập nhật các ràng buộc Q
-    pre_tasks = {task: [] for task in available_task}
     for task_1, task_2 in Q.copy():
         if task_1 not in available_task or task_2 not in available_task:
             Q.remove((task_1, task_2))
-        else:
-            pre_tasks[task_2].append(task_1)
-    
+
+    pre_tasks = {task: [] for task in available_task}
+    for task_1, task_2 in Q:
+        pre_tasks[task_2].append(task_1)
+
     task_and_team = {task: [] for task in available_task}
     for task, team in C:
         task_and_team[task].append(team)
@@ -389,7 +405,7 @@ if __name__ == '__main__':
         print(task+1, team+1, start_time)
 
     # check_constraint(results, Q, s)    
-    # print(calculate_result(results, d, C))
+    print(calculate_result(results, d, C))
 
     # for seed in range(100):
     #     random.seed(seed)
