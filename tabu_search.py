@@ -304,13 +304,13 @@ def tabu_select(best_pre_results, task_and_team, tabu_list: deque, pre_tasks: di
     return best_neighbor, best_pre_results
 
 def tabu_search(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team, initial_tabu_length=30, max_tabu_length=50, min_tabu_length=10, stuck_count_limit=100, time_limit=100):
-    # from greedy import greedy_min_starttime
-    # best_results = greedy_min_starttime(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team)
-    # best_pre_results = []
-    # for task, team, start_time in best_results:
-    #     best_pre_results.append((task, team))
+    from my_greedy import greedy_scheduling_with_strict_dependencies
+    best_results = greedy_scheduling_with_strict_dependencies(n, m, d, s, Q, C)
+    best_pre_results = []
+    for task, team, start_time in best_results:
+        best_pre_results.append((task, team))
 
-    best_pre_results, best_results = feasible_result(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team)
+    # best_pre_results, best_results = feasible_result(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team)
     best_global_results = best_results.copy()
 
     stuck_count = 0
@@ -321,8 +321,8 @@ def tabu_search(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team, initial_tabu_l
     start_time_TS = time.time()
     results_log = []
     i = 0
-    # while time.time() - start_time_TS < time_limit and stuck_count < stuck_count_limit:
-    while stuck_count < stuck_count_limit:
+    while time.time() - start_time_TS < time_limit and stuck_count < stuck_count_limit:
+    # while stuck_count < stuck_count_limit:
     # while time.time() - start_time_TS < time_limit:
         i += 1
         stuck_count += 1
