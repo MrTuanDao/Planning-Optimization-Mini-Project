@@ -10,6 +10,7 @@ TIME_LIMIT = 10 # seconds
 
 import random
 import time
+
 def my_input():
     # number of tasks, number of constraints
     n, q = map(int, input().split())
@@ -79,27 +80,61 @@ def my_input():
         
         return cycles
 
+    def find_dependent_tasks(graph, cycles):
+        # Tìm tất cả các task phụ thuộc vào các task trong cycle
+        dependent_tasks = set(cycles)
+        queue = list(cycles)
+        
+        while queue:
+            current = queue.pop(0)
+            # Tìm tất cả các task phụ thuộc vào current
+            for u, v in Q:
+                if u == current and v not in dependent_tasks:
+                    dependent_tasks.add(v)
+                    queue.append(v)
+        
+        return dependent_tasks
+
+    # Tạo đồ thị từ các ràng buộc Q
+    graph = {}
+    for u, v in Q:
+        if u not in graph:
+            graph[u] = []
+        graph[u].append(v)
+
+    # Tìm các chu trình
     import itertools
     cycles = set(itertools.chain(*find_cycles(Q)))
 
-    for task in cycles:
-        for task_1, team in C.copy():
-            if task_1 == task:
-                C.pop((task_1, team))
+    # Tìm tất cả các task cần loại bỏ (trong chu trình và phụ thuộc)
+    tasks_to_remove = find_dependent_tasks(graph, cycles)
 
+    # Loại bỏ các task khỏi C
+    for task_1, team in C.copy():
+        if task_1 in tasks_to_remove:
+            C.pop((task_1, team))
+
+    # Tạo danh sách các task khả dụng
     available_task = []
     for task, team in C:
-        if task in cycles:
+        if task in tasks_to_remove:
             continue
-
         if task not in available_task:
             available_task.append(task)
 
+    # Cập nhật các ràng buộc Q
+    pre_tasks = {task: [] for task in available_task}
     for task_1, task_2 in Q.copy():
         if task_1 not in available_task or task_2 not in available_task:
             Q.remove((task_1, task_2))
+        else:
+            pre_tasks[task_2].append(task_1)
+    
+    task_and_team = {task: [] for task in available_task}
+    for task, team in C:
+        task_and_team[task].append(team)
 
-    return n, q, Q, d, m, s, c, C
+    return n, q, Q, d, m, s, c, C, pre_tasks, task_and_team
 
 def check_constraint(results, Q, s):
     completion_time = {task: 0 for task in range(n)}
@@ -153,7 +188,7 @@ def calculate_result(results, duration, Cost):
 
     return task_count, completion_time, cost
 
-def calculate_start_time(pre_results: list, duration, team_start_time, Q):
+def calculate_start_time(pre_results: list, duration, team_start_time, Q, pre_tasks, task_and_team):
     results = []
     completion_time_of_task = {task: 1e9 for task in range(n)}
     available_time_of_team = {team: team_start_time[team] for team in range(m)}
@@ -171,15 +206,14 @@ def calculate_start_time(pre_results: list, duration, team_start_time, Q):
         # if pre_task is not completed, then skip, else start time is max of completion time of pre_task and available time of team
         continue_flag = False
         pre_task_complete_time = []
-        for task_1, task_2 in Q:
-            if task_2 == task:
-                if completion_time_of_task[task_1] == 1e9:
-                    pre_results.insert(pop_position, (task_2, team))
-                    pop_position += 1
-                    continue_flag = True
-                    break
-                if completion_time_of_task[task_1] > available_time_of_team[team]:
-                    pre_task_complete_time.append(completion_time_of_task[task_1])
+        for task_1 in pre_tasks[task]:
+            if completion_time_of_task[task_1] == 1e9:
+                pre_results.insert(pop_position, (task, team))
+                pop_position += 1
+                continue_flag = True
+                break
+            if completion_time_of_task[task_1] > available_time_of_team[team]:
+                pre_task_complete_time.append(completion_time_of_task[task_1])
         
         if continue_flag:
             continue
@@ -198,31 +232,22 @@ def calculate_start_time(pre_results: list, duration, team_start_time, Q):
 
     return results
 
-def feasible_result(Q, d, s, C):
+def feasible_result(Q, d, s, C, pre_tasks, task_and_team):
     # create a random (task, team) assignment and order then calculate start time
     cost = C.copy()
+    task_and_team = task_and_team.copy()
 
     pre_results = []
-    while cost:
-        task, team = random.choice(list(cost.keys()))
+    while task_and_team:
+        task = random.choice(list(task_and_team.keys()))
+        team = random.choice(task_and_team[task])
         pre_results.append((task, team))
-        
-        for task_1, team_1 in cost.copy():
-            if task_1 == task:
-                cost.pop((task_1, team_1))
+        task_and_team.pop(task)
 
-    results = calculate_start_time(pre_results, d, s, Q)
+    results = calculate_start_time(pre_results, d, s, Q, pre_tasks, task_and_team)
     return results
 
-def task_and_team_pair(C):
-    task_and_team = {}
-    for task, team in C:
-        if task not in task_and_team:
-            task_and_team[task] = []
-        task_and_team[task].append(team)
-    return task_and_team
-
-def crossover(parent_1, parent_2):
+def crossover(parent_1, parent_2, pre_tasks, task_and_team):
     pre_results_1 = []
     pre_results_2 = []
 
@@ -237,8 +262,8 @@ def crossover(parent_1, parent_2):
     child_1 = pre_results_1[:len_pre_results_1 // 2] + pre_results_2[len_pre_results_2 // 2:]
     child_2 = pre_results_2[:len_pre_results_2 // 2] + pre_results_1[len_pre_results_1 // 2:]
 
-    child_1 = calculate_start_time(child_1, d, s, Q)
-    child_2 = calculate_start_time(child_2, d, s, Q)
+    child_1 = calculate_start_time(child_1, d, s, Q, pre_tasks, task_and_team)
+    child_2 = calculate_start_time(child_2, d, s, Q, pre_tasks, task_and_team)
 
     return child_1, child_2
 
@@ -272,7 +297,7 @@ def mutation(parent, task_and_team):
             cannot_find_neighbor = True
             break
 
-        results = calculate_start_time(pre_results, d, s, Q)
+        results = calculate_start_time(pre_results, d, s, Q, pre_tasks, task_and_team)
 
         cannot_find_neighbor = False
         break
@@ -286,15 +311,15 @@ def check_time_limit(start_time_GA):
     # print(time.time() - start_time_GA)
     return time.time() - start_time_GA < TIME_LIMIT
 
-def GA(Q, d, s, C, task_and_team):
+def GA(Q, d, s, C, pre_tasks, task_and_team):
     start_time_GA = time.time()
-    best_result = feasible_result(Q, d, s, C)
+    best_result = feasible_result(Q, d, s, C, pre_tasks, task_and_team)
 
     population_size = INITIAL_POPULATION_SIZE
     # create a random population
     population = [best_result]
     for _ in range(population_size):
-        population.append(feasible_result(Q, d, s, C))
+        population.append(feasible_result(Q, d, s, C, pre_tasks, task_and_team))
         if not check_time_limit(start_time_GA):
             break
 
@@ -312,7 +337,7 @@ def GA(Q, d, s, C, task_and_team):
         # crossover
         for _ in range(num_best_population):
             parent_1, parent_2 = random.sample(best_population, 2)
-            child_1, child_2 = crossover(parent_1, parent_2)
+            child_1, child_2 = crossover(parent_1, parent_2, pre_tasks, task_and_team)
             population.append(child_1)
             population.append(child_2)
 
@@ -357,9 +382,8 @@ def GA(Q, d, s, C, task_and_team):
 
 if __name__ == '__main__':
     # random.seed(8)
-    n, q, Q, d, m, s, c, C = my_input()
-    task_and_team = task_and_team_pair(C)
-    results = GA(Q, d, s, C, task_and_team)
+    n, q, Q, d, m, s, c, C, pre_tasks, task_and_team = my_input()
+    results = GA(Q, d, s, C, pre_tasks, task_and_team)
     print(len(results))
     for task, team, start_time in results:
         print(task+1, team+1, start_time)
