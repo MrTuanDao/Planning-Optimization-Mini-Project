@@ -103,6 +103,7 @@ def my_input():
 #--------------------------------------------------------------------------------
 def greedy_min_starttime(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team):
     Cost = C.copy()
+    task_and_team = task_and_team.copy()
     results = [] # (task, team, start_time)
     
     available_time = {team: s[team] for team in range(m)}
@@ -130,17 +131,18 @@ def greedy_min_starttime(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team):
                 min_cost = Cost[(task, team)]
                 continue
                 
-        assert min_available_team != -1, 'All tasks do not have pre-task should be assigned to a team'
+        # assert min_available_team != -1, 'All tasks do not have pre-task should be assigned to a team'
 
         available_time[min_available_team] = min_available_time + d[task]
         completion_time[task] = available_time[min_available_team]
         results.append((task, min_available_team, min_available_time))
         
-        for team in task_and_team[task]:
-            Cost.pop((task, team))
+        # for team in task_and_team[task]:
+        #     Cost.pop((task, team))
+        task_and_team.pop(task)
 
     start_time_ = time.time()
-    while Cost and time.time() - start_time_ < TIME_LIMIT:        
+    while task_and_team and time.time() - start_time_ < TIME_LIMIT:        
         # get team and task that has least available time
         min_available_time = 1e9
         min_available_team = -1
@@ -148,62 +150,57 @@ def greedy_min_starttime(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team):
         min_cost = 1e9
         # pre_task_completion_time = []
         # pre_task = []
-        for (task, team) in Cost:
-            continue_flag_if_pre_task_not_done = False
-            # check at this time, pre task of task is done yet
-            cur_time = available_time[team]
-            pre_task_completion_time = []
+        # for (task, team) in Cost:
+        for task in task_and_team.keys():
+            for team in task_and_team[task]:
+                continue_flag_if_pre_task_not_done = False
+                # check at this time, pre task of task is done yet
+                cur_time = available_time[team]
+                pre_task_completion_time = []
 
-            for task_1 in pre_tasks[task]:
-                # max of all pre-task completion time
-                if completion_time[task_1] > cur_time:
-                    continue_flag_if_pre_task_not_done = True
-                    pre_task_completion_time.append(completion_time[task_1])
+                for task_1 in pre_tasks[task]:
+                    # max of all pre-task completion time
+                    if completion_time[task_1] > cur_time:
+                        continue_flag_if_pre_task_not_done = True
+                        pre_task_completion_time.append(completion_time[task_1])
 
-            max_pre_task_completion_time = max(pre_task_completion_time) if pre_task_completion_time else 1e9
-            if max_pre_task_completion_time < min_available_time:
-                min_available_time = max_pre_task_completion_time
-                min_available_team = team
-                min_available_task = task
-                min_cost = Cost[(task, team)]
-                continue
+                max_pre_task_completion_time = max(pre_task_completion_time) if pre_task_completion_time else 1e9
+                if max_pre_task_completion_time < min_available_time:
+                    min_available_time = max_pre_task_completion_time
+                    min_available_team = team
+                    min_available_task = task
+                    min_cost = Cost[(task, team)]
+                    continue
 
-            if max_pre_task_completion_time == min_available_time and Cost[(task, team)] < min_cost:
-                min_available_team = team
-                min_available_task = task
-                min_cost = Cost[(task, team)]
-                continue
+                if max_pre_task_completion_time == min_available_time and Cost[(task, team)] < min_cost:
+                    min_available_team = team
+                    min_available_task = task
+                    min_cost = Cost[(task, team)]
+                    continue
 
-            if continue_flag_if_pre_task_not_done:
-                continue
+                if continue_flag_if_pre_task_not_done:
+                    continue
 
-            if available_time[team] < min_available_time:  
-                min_available_time = available_time[team]
-                min_available_team = team
-                min_available_task = task
-                min_cost = Cost[(task, team)]
-                continue
+                if available_time[team] < min_available_time:  
+                    min_available_time = available_time[team]
+                    min_available_team = team
+                    min_available_task = task
+                    min_cost = Cost[(task, team)]
+                    continue
 
-            if available_time[team] == min_available_time and Cost[(task, team)] < min_cost:
-                min_available_time = available_time[team]
-                min_available_team = team
-                min_available_task = task
-                min_cost = Cost[(task, team)]
-                continue
-
+                if available_time[team] == min_available_time and Cost[(task, team)] < min_cost:
+                    min_available_team = team
+                    min_available_task = task
+                    min_cost = Cost[(task, team)]
+                    continue
 
         # assign task to team
         available_time[min_available_team] = min_available_time + d[min_available_task]
         completion_time[min_available_task] = available_time[min_available_team]
-        for team in task_and_team[min_available_task]:
-            Cost.pop((min_available_task, team))
+        task_and_team.pop(min_available_task)
 
         results.append((min_available_task, min_available_team, available_time[min_available_team] - d[min_available_task]))
 
-    print(len(results))
-    for task, team, start_time in results:
-        print(task+1, team+1, start_time)
-    
     return results
 
 def check_constraint(results, Q):
@@ -232,6 +229,10 @@ def calculate_result(results, duration, Cost):
 if __name__=='__main__':
     n, q, Q, d, m, s, c, C, pre_tasks, task_and_team = my_input()
     results = greedy_min_starttime(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team)
+
+    print(len(results))
+    for task, team, start_time in results:
+        print(task+1, team+1, start_time)
     # check_constraint(results, Q)
     
     # print(calculate_result(results, d, C))

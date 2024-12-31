@@ -1,7 +1,7 @@
 STUCK_COUNT_LIMIT = 100
 FIND_NEIGHBOR_TRY = 100
 CHANGE_TEAM_TRY = 100
-TIME_LIMIT = 5 # seconds
+TIME_LIMIT = 100 # seconds
 
 import random
 import time
@@ -113,7 +113,7 @@ def check_constraint(results, Q, s):
             print(f'Task {task+1} is assigned to team {team+1} at {start_time} but team {team+1} is available at {s[team]}')
 
 
-def compare_results(results_1, results_2) -> bool:
+def compare_results(results_1, results_2, d, C) -> bool:
     """Compare results_1 and results_2 
     
     Return True if results_1 is better than results_2, else False
@@ -149,7 +149,7 @@ def calculate_result(results, duration, Cost):
 
     return task_count, completion_time, cost
 
-def calculate_start_time(pre_results: list, duration, team_start_time, Q):
+def calculate_start_time(pre_results: list, duration, team_start_time, Q, n, m):
     results = []
     completion_time_of_task = {task: 1e9 for task in range(n)}
     available_time_of_team = {team: team_start_time[team] for team in range(m)}
@@ -201,10 +201,10 @@ def feasible_result(n, q, Q, d, m, s, c, C):
             if task_1 == task:
                 cost.pop((task_1, team_1))
 
-    results = calculate_start_time(pre_results, d, s, Q)
+    results = calculate_start_time(pre_results, d, s, Q, n, m)
     return results
 
-def neighbor_result(results, task_and_team):
+def neighbor_result(results, task_and_team, n, m, d, s, Q):
     pre_results = []
     for task, team, start_time in results:
         pre_results.append((task, team))
@@ -234,7 +234,7 @@ def neighbor_result(results, task_and_team):
             cannot_find_neighbor = True
             break
 
-        results = calculate_start_time(pre_results, d, s, Q)
+        results = calculate_start_time(pre_results, d, s, Q, n, m)
 
         cannot_find_neighbor = False
         break
@@ -249,21 +249,23 @@ def local_search(n, q, Q, d, m, s, c, C, task_and_team):
     best_results = results
 
     stuck_count = 0
+    results_log = []
     start_time_LS = time.time()
-    while time.time() - start_time_LS < TIME_LIMIT:
-        results = neighbor_result(best_results, task_and_team)
+    count_LS = 0
+    # while time.time() - start_time_LS < TIME_LIMIT and stuck_count < STUCK_COUNT_LIMIT:
+    while stuck_count < STUCK_COUNT_LIMIT:
+        count_LS += 1
+        results = neighbor_result(best_results, task_and_team, n, m, d, s, Q)
 
-        if compare_results(results, best_results):
+        if compare_results(results, best_results, d, C):
             # print(f'Improvement: {calculate_result(results, d, C)} from {calculate_result(best_results, d, C)}')
             best_results = results
             stuck_count = 0
+            results_log.append((count_LS, calculate_result(results, d, C)))
         else:
             stuck_count += 1
 
-        if stuck_count > STUCK_COUNT_LIMIT:
-            break
-
-    return best_results
+    return best_results, results_log
 
 def task_and_team_pair(C):
     task_and_team = {}
@@ -276,7 +278,7 @@ def task_and_team_pair(C):
 if __name__ == '__main__':
     n, q, Q, d, m, s, c, C = my_input()
     task_and_team = task_and_team_pair(C)
-    results = local_search(n, q, Q, d, m, s, c, C, task_and_team)
+    results, results_log = local_search(n, q, Q, d, m, s, c, C, task_and_team)
     print(len(results))
     for task, team, start_time in results:
         print(task+1, team+1, start_time)

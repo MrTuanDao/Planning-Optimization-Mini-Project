@@ -1,6 +1,7 @@
 TRY_COUNT_1 = 100
 TRY_COUNT_2 = 100
 
+import heapq
 import random
 import time
 from collections import deque
@@ -303,9 +304,78 @@ def tabu_select(best_pre_results, task_and_team, tabu_list: deque, pre_tasks: di
 
     return best_neighbor, best_pre_results
 
+#n is number of tasks
+#m is number of teams
+#d is duration of each task
+#s is available time points of each team
+#Q is constraints pairs, (i, j) means task i must be completed before task j
+#C is cost if team i is assigned to task j
+def greedy_scheduling_with_strict_dependencies(n, m, d, s, Q, C):
+    start_time = time.time()
+    results = []
+    available_time = {team: s[team] for team in range(m)}
+    completion_time = {}
+    
+    # Tính danh sách tiền đề (precedents) cho mỗi nhiệm vụ
+    precedents = {i: [] for i in range(n)}
+    in_degree = {i: 0 for i in range(n)}
+    for task_1, task_2 in Q:
+        precedents[task_2].append(task_1)
+        in_degree[task_2] += 1
+
+    # Hàng đợi ưu tiên (ưu tiên nhiệm vụ có ít tiền đề nhất và thời lượng ngắn nhất)
+    priority_queue = []
+    for task in range(n):
+        if in_degree[task] == 0:
+            heapq.heappush(priority_queue, (0, d[task], task))  # (in-degree, duration, task)
+
+    while priority_queue and time.time() - start_time < 10:
+        #shuffle priority_queue
+        random.shuffle(priority_queue)
+        # Lấy nhiệm vụ có độ ưu tiên cao nhất
+        _, _, task = heapq.heappop(priority_queue)
+        
+        # Tham lam chọn đội
+        min_team = -1
+        min_start_time = float('inf')
+        min_cost = float('inf')
+        
+        for team in range(m):
+            if (task, team) in C:
+                # Tính thời gian khả thi để bắt đầu
+                max_predecessor_completion=0
+                if precedents[task]:
+                    max_predecessor_completion = max(completion_time.get(pre_task, 0) for pre_task in precedents[task])
+                start_time_team = max(max_predecessor_completion, available_time[team])
+                
+                # Ưu tiên thời gian bắt đầu sớm nhất, sau đó là chi phí thấp nhất
+                if (start_time_team < min_start_time or 
+                    (start_time_team == min_start_time and C[(task, team)] < min_cost)):
+                    min_team = team
+                    min_start_time = start_time_team
+                    min_cost = C[(task, team)]
+        
+        if min_team == -1:
+            continue  # Không có đội khả dụng
+
+        # Gán đội và cập nhật thời gian
+        available_time[min_team] = min_start_time + d[task]
+        completion_time[task] = available_time[min_team]
+        results.append((task, min_team, min_start_time))
+        
+        # Cập nhật trạng thái ràng buộc
+        for dependent_task in range(n):
+            if task in precedents[dependent_task]:
+                in_degree[dependent_task] -= 1
+                if in_degree[dependent_task] == 0:
+                    heapq.heappush(priority_queue, (in_degree[dependent_task], d[dependent_task], dependent_task))
+    
+    return results
+
 def tabu_search(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team, initial_tabu_length=30, max_tabu_length=50, min_tabu_length=10, stuck_count_limit=100, time_limit=100):
-    from my_greedy import greedy_scheduling_with_strict_dependencies
-    best_results = greedy_scheduling_with_strict_dependencies(n, m, d, s, Q, C)
+    # best_results = greedy_scheduling_with_strict_dependencies(n, m, d, s, Q, C)
+    from greedy import greedy_min_starttime
+    best_results = greedy_min_starttime(n, q, Q, d, m, s, c, C, pre_tasks, task_and_team.copy())
     best_pre_results = []
     for task, team, start_time in best_results:
         best_pre_results.append((task, team))

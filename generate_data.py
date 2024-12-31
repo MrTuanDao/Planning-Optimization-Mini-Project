@@ -1,9 +1,9 @@
 import random
 
-N = 1000 # number of tasks
-M = 900 # number of teams
-Q = 3000 # number of constraints
-K = 10000 # number of task-team pairs / cost matrix
+N = 100 # number of tasks
+M = 80 # number of teams
+Q = 100 # number of constraints
+K = 1500 # number of task-team pairs / cost matrix
 
 # generate available time points for each team
 s = [random.randint(1, 1000) for _ in range(M)]
@@ -29,7 +29,7 @@ import os
 folder = 'synthetic_data'
 os.makedirs(folder, exist_ok=True)
 
-with open(f'{folder}/tc_{M}_{N}_{Q}_{K}.txt', 'w') as f:
+with open(f'{folder}/tc_{N}.txt', 'w') as f:
     f.write(f'{N} {Q}\n')
     for i in range(Q):
         f.write(f'{Q_matrix[i][0]} {Q_matrix[i][1]}\n')
